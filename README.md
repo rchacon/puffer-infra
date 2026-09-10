@@ -4,8 +4,8 @@ AWS infrastructure as code for [Puffer Panic](https://github.com/rchacon/puffer-
 a small React reading game for kids.
 
 The React app is hosted on **AWS Amplify Hosting**, built and auto-deployed from the
-`main` branch of `rchacon/puffer-panic`, and served at **pufferpanic.com** (registered
-and DNS-hosted in **Cloudflare**).
+`main` branch of `rchacon/puffer-panic`, and served at **app.pufferpanic.com** (`pufferpanic.com` is
+registered and DNS-hosted in **Cloudflare**).
 
 See [`terraform/README.md`](terraform/README.md) for per-directory setup and usage.
 

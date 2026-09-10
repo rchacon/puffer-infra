@@ -12,7 +12,9 @@ output "default_domain" {
   value       = "https://${aws_amplify_branch.main.branch_name}.${aws_amplify_app.puffer_panic.default_domain}"
 }
 
-output "custom_domain_url" {
-  description = "puffer-panic's custom domain URL (null until enable_custom_domain = true)."
-  value       = var.enable_custom_domain ? "https://${var.domain_name}" : null
+output "custom_domain_urls" {
+  description = "puffer-panic's custom domain URLs, one per served subdomain prefix (empty until enable_custom_domain = true). With the defaults: [\"https://app.pufferpanic.com\"]."
+  value = var.enable_custom_domain ? [
+    for p in var.subdomain_prefixes : "https://${p == "" ? "" : "${p}."}${var.domain_name}"
+  ] : []
 }

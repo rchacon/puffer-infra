@@ -88,7 +88,7 @@ enable_custom_domain = true
 cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpanic.com zone>"
 cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
 # domain_name defaults to "pufferpanic.com"
-# subdomain_prefixes defaults to ["", "www"] (apex + www); override if you want something else
+# subdomain_prefixes defaults to ["app"] -> app.pufferpanic.com; override if you want something else
 ```
 
 ```bash
@@ -102,9 +102,8 @@ Amplify console's **Custom domains** tab (or re-run `terraform plan`); don't tru
 `apply`'s exit code for the domain association. Once it shows **Available**:
 
 ```bash
-dig +short pufferpanic.com
-dig +short www.pufferpanic.com
-curl -sI https://pufferpanic.com | head -1
+dig +short app.pufferpanic.com
+curl -sI https://app.pufferpanic.com | head -1
 ```
 
 ## Validating without AWS credentials
