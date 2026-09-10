@@ -29,7 +29,7 @@ resource "aws_amplify_app" "puffer_panic" {
         preBuild:
           commands:
             - nvm use 22 || nvm install 22
-            - npm ci
+            - npm ci --cache .npm --prefer-offline
         build:
           commands:
             - npm run build
@@ -37,9 +37,13 @@ resource "aws_amplify_app" "puffer_panic" {
         baseDirectory: dist
         files:
           - '**/*'
+      # Cache npm's download cache, not node_modules: `npm ci` deletes
+      # node_modules before installing, so caching it buys nothing --
+      # caching .npm lets `npm ci --prefer-offline` install from local
+      # tarballs instead of re-downloading every package each build.
       cache:
         paths:
-          - node_modules/**/*
+          - .npm/**/*
   YAML
 
   # SPA fallback rewrite. puffer-panic has no client-side router, so this
@@ -113,9 +117,21 @@ resource "aws_amplify_domain_association" "puffer_panic" {
 # or `" CNAME xyz.cloudfront.net"` (leading space, empty name) for the
 # apex. Deliberately NOT trimspace()'d before splitting -- trimming would
 # eat that meaningful leading space on the empty-name case and shift every
-# field over by one. Index [0] is the name (unused -- each record sets
-# `name` explicitly), [1] the type, [2] the value (which comes fully
-# qualified with a trailing "." that Cloudflare doesn't store).
+# field over by one. Index [0] is the record name, [1] the type, [2] the
+# value; the value -- and, for cert_verification, the name -- can come back
+# fully qualified with a trailing "." that Cloudflare doesn't store, so
+# both get trimsuffix()'d. cloudflare_record.subdomain sets `name`
+# explicitly instead and ignores [0].
+#
+# Either string can also come back EMPTY: `certificate_verification_dns_record`
+# when ACM reused an already-validated cert for this domain (e.g. a sibling
+# Amplify app / the marketing site validated one first), and a
+# sub_domain.dns_record transiently right after the association is created.
+# split(" ", "") is [""] (length 1), so a bare index would raise "Invalid
+# index" mid-apply, after the domain association already exists. Each
+# record below guards with try()/a precondition instead, so you get an
+# actionable message and can re-run (or drop the cert record) rather than a
+# stuck half-apply.
 #
 # sub_domain is a *set* of objects (unordered), so the map below is keyed
 # by each object's known `prefix`. for_each on the resources themselves is
@@ -135,11 +151,18 @@ resource "cloudflare_record" "cert_verification" {
   count = var.enable_custom_domain ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = local.cert_verification[0]
-  type    = local.cert_verification[1]
-  content = trimsuffix(local.cert_verification[2], ".")
+  name    = try(trimsuffix(local.cert_verification[0], "."), "")
+  type    = try(local.cert_verification[1], "CNAME")
+  content = try(trimsuffix(local.cert_verification[2], "."), "")
   ttl     = 300
   proxied = false
+
+  lifecycle {
+    precondition {
+      condition     = length(local.cert_verification) == 3
+      error_message = "aws_amplify_domain_association.puffer_panic returned an empty certificate_verification_dns_record for ${var.domain_name} -- ACM reused an already-validated certificate, so there is no new validation record to create. Comment out cloudflare_record.cert_verification and re-apply; the domain still verifies against the existing record."
+    }
+  }
 }
 
 # One record per served subdomain prefix. The apex ("") sets name to the
@@ -156,8 +179,15 @@ resource "cloudflare_record" "subdomain" {
 
   zone_id = var.cloudflare_zone_id
   name    = each.value == "" ? var.domain_name : each.value
-  type    = local.sub_records[each.value][1]
-  content = trimsuffix(local.sub_records[each.value][2], ".")
+  type    = try(local.sub_records[each.value][1], "CNAME")
+  content = try(trimsuffix(local.sub_records[each.value][2], "."), "")
   ttl     = 300
   proxied = false
+
+  lifecycle {
+    precondition {
+      condition     = try(length(local.sub_records[each.value]) == 3, false)
+      error_message = "aws_amplify_domain_association.puffer_panic returned no dns_record for subdomain prefix '${each.key}' yet. Re-run `terraform apply` once the domain association has registered with Amplify."
+    }
+  }
 }
