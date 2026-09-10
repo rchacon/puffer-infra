@@ -97,7 +97,9 @@ terraform apply
 ```
 
 The new Cloudflare records are additive (grey-cloud, `proxied = false`) and don't
-touch any existing zone records. Domain verification is asynchronous — watch the
+touch any existing zone records. This module only ever manages the `app` subdomain —
+the apex (`pufferpanic.com`) and `www` are reserved for a separate Puffer Panic
+marketing site. Domain verification is asynchronous — watch the
 Amplify console's **Custom domains** tab (or re-run `terraform plan`); don't trust
 `apply`'s exit code for the domain association. Once it shows **Available**:
 

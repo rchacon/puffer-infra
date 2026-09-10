@@ -73,7 +73,7 @@ variable "enable_custom_domain" {
 }
 
 variable "subdomain_prefixes" {
-  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"app\"] -> app.pufferpanic.com. \"\" would be the apex (Cloudflare CNAME-flattens it, so an apex CNAME is valid) if you ever need it."
+  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"app\"] -> app.pufferpanic.com. Keep it to app: the apex (pufferpanic.com) and www are reserved for a separate Puffer Panic marketing site and must not be claimed by this module."
   type        = list(string)
   default     = ["app"]
 }

@@ -31,6 +31,9 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
   resources with `proxied = false` (grey-cloud) — Amplify already fronts the app with
   its own CloudFront distribution, so proxying through Cloudflare on top would be two
   CDNs for no benefit and would likely break Amplify's domain verification.
+- **The Amplify app lives at `app.pufferpanic.com` only.** The apex
+  (`pufferpanic.com`) and `www` are reserved for a separate Puffer Panic marketing
+  site — don't add them to `subdomain_prefixes` or otherwise claim those records here.
 - **Amplify's `dns_record` / `certificate_verification_dns_record` outputs are
   space-delimited strings** (`"<name> <TYPE> <VALUE>"`), parsed with `split(" ", ...)`
   and deliberately **not** `trimspace`d — the leading space on the empty-name apex
