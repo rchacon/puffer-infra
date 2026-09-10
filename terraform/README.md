@@ -85,10 +85,10 @@ confirm auto-build fires.
 
 ```hcl
 enable_custom_domain = true
-domain_name          = "pufferpanic.com"          # your apex domain, a zone in Cloudflare
-cloudflare_api_token = "<Zone:DNS:Edit token>"
-cloudflare_zone_id   = "<zone ID from Cloudflare dashboard>"
-# subdomain_prefixes defaults to ["", "www"]; override if you want something else
+cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpanic.com zone>"
+cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
+# domain_name defaults to "pufferpanic.com"
+# subdomain_prefixes defaults to ["", "www"] (apex + www); override if you want something else
 ```
 
 ```bash

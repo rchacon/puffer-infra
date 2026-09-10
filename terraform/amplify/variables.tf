@@ -40,9 +40,9 @@ variable "branch_name" {
 }
 
 variable "domain_name" {
-  description = "Apex domain served by the Amplify app, hosted as a zone in Cloudflare (e.g. \"pufferpanic.com\"). Only used when enable_custom_domain = true."
+  description = "Apex domain served by the Amplify app -- pufferpanic.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
   type        = string
-  default     = ""
+  default     = "pufferpanic.com"
 }
 
 # Scoped to "Zone:DNS:Edit" on this one zone (Cloudflare dashboard -> My
