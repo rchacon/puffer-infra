@@ -47,19 +47,25 @@ variable "domain_name" {
 
 # Scoped to "Zone:DNS:Edit" on this one zone (Cloudflare dashboard -> My
 # Profile -> API Tokens -> Create Token -> "Edit zone DNS" template) --
-# never the legacy account-wide Global API Key. Only used when
-# enable_custom_domain = true.
+# never the legacy account-wide Global API Key.
+#
+# The default is a deliberate well-formed placeholder: the cloudflare
+# provider block is always instantiated and its api_token validator
+# demands a 40-char [A-Za-z0-9-_] string, even for Pass 1 where
+# enable_custom_domain = false and no cloudflare_* resource exists. This
+# junk token is never sent anywhere in that case. Pass 2 overrides it with
+# the real token in terraform.tfvars.
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token scoped to Zone:DNS:Edit for the domain's zone only."
+  description = "Cloudflare API token scoped to Zone:DNS:Edit for the domain's zone only. Required when enable_custom_domain = true; leave as the default otherwise."
   type        = string
   sensitive   = true
-  default     = ""
+  default     = "unsetunsetunsetunsetunsetunsetunsetunset"
 }
 
 variable "cloudflare_zone_id" {
-  description = "Cloudflare zone ID for domain_name (Cloudflare dashboard -> the domain's Overview tab, right sidebar). Only used when enable_custom_domain = true."
+  description = "Cloudflare zone ID for domain_name (Cloudflare dashboard -> the domain's Overview tab, right sidebar). Required only when enable_custom_domain = true."
   type        = string
-  default     = ""
+  default     = null
 }
 
 # Gates the domain association + Cloudflare records so the first apply can
