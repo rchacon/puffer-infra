@@ -1,25 +1,29 @@
 # terraform/
 
 Each subdirectory is an independent Terraform root module. Apply `bootstrap/` once,
-then `amplify/`.
+then `amplify/` and `amplify-website/` (independent of each other, any order).
 
 ## Prerequisites
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.15
 - AWS credentials for the target account (env vars, an AWS CLI profile, or SSO —
   anything the AWS provider's standard credential chain picks up)
-- For `amplify/`:
-  - The **AWS Amplify GitHub App** installed/authorized for `rchacon/puffer-panic`,
-    **and** that repo added to the App's repository access list (GitHub → Settings →
-    Applications → AWS Amplify → Configure). Both steps are required — a missing repo
-    on the access list fails the first build with a misleading
-    `Unable to assume specified IAM Role`.
+- For `amplify/` and `amplify-website/` (same requirements, against different repos):
+  - The **AWS Amplify GitHub App** installed/authorized for the app's repo
+    (`rchacon/puffer-panic` for `amplify/`, `rchacon/pufferpanic.com` for
+    `amplify-website/`), **and** that repo added to the App's repository access list
+    (GitHub → Settings → Applications → AWS Amplify → Configure) — each repo has to be
+    added individually. Both steps are required — a missing repo on the access list
+    fails the first build with a misleading `Unable to assume specified IAM Role`.
   - A **GitHub personal access token** (classic), scope **`admin:repo_hook` only** —
-    used once at `CreateApp` to register Amplify's webhook.
+    used once at `CreateApp` to register Amplify's webhook. Can be the same token for
+    both modules.
   - For the custom domain (second apply only): the domain hosted as a **zone in
     Cloudflare**, a **Cloudflare API token** scoped `Zone:DNS:Edit` on that zone
     (dashboard → My Profile → API Tokens → "Edit zone DNS" template), and the
-    **Zone ID** (dashboard → the domain's Overview tab).
+    **Zone ID** (dashboard → the domain's Overview tab). Both modules point at the
+    same `pufferpanic.com` zone — the token/zone ID can be reused, just copied into
+    each module's own `terraform.tfvars`.
 
 ## `bootstrap/` — one-time state backend
 
@@ -106,6 +110,71 @@ Amplify console's **Custom domains** tab (or re-run `terraform plan`); don't tru
 ```bash
 dig +short app.pufferpanic.com
 curl -sI https://app.pufferpanic.com | head -1
+```
+
+## `amplify-website/` — marketing site Amplify Hosting + Cloudflare DNS
+
+Same shape as `amplify/`, against `rchacon/pufferpanic.com` and the apex/`www`
+instead. Unlike `amplify/`, there's no `build_spec` to worry about — the repo already
+commits its own `amplify.yml` and Amplify auto-detects it.
+
+```bash
+cd terraform/amplify-website
+
+cat > backend.hcl <<EOF
+bucket  = "<state_bucket_name from bootstrap output>"
+key     = "amplify-website/terraform.tfstate"
+region  = "us-west-2"
+encrypt = true
+EOF
+
+cat > terraform.tfvars <<EOF
+state_bucket_name   = "<state_bucket_name from bootstrap output>"
+github_access_token = "<classic PAT, scope admin:repo_hook only>"
+EOF
+
+terraform init -backend-config=backend.hcl
+terraform plan
+terraform apply
+```
+
+**Pass 1 — app on the default URL** (`enable_custom_domain` defaults to `false`):
+
+```bash
+terraform apply
+open "$(terraform output -raw default_domain)"
+```
+
+Confirm the build succeeds in the Amplify console and the site renders. Push a
+trivial commit to `main` and confirm auto-build fires.
+
+**Pass 2 — custom domain.** Add the domain settings to `terraform.tfvars`:
+
+```hcl
+enable_custom_domain = true
+cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpanic.com zone>"
+cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
+# domain_name defaults to "pufferpanic.com"
+# subdomain_prefixes defaults to ["", "www"] -> pufferpanic.com + www.pufferpanic.com
+```
+
+```bash
+terraform plan    # expect: 1 aws_amplify_domain_association + the cloudflare_record resources
+terraform apply
+```
+
+This module only ever manages the apex + `www` — `amplify/`'s `app` record is
+untouched. If `amplify/`'s custom domain was applied first, ACM may reuse its
+already-validated `*.pufferpanic.com`-covering cert here; if so,
+`certificate_verification_dns_record` comes back empty and the
+`cloudflare_record.cert_verification` precondition tells you to comment that resource
+out and re-apply — no new validation record is needed in that case. Once the domain
+association shows **Available** in the Amplify console:
+
+```bash
+dig +short pufferpanic.com
+dig +short www.pufferpanic.com
+curl -sI https://pufferpanic.com | head -1
 ```
 
 ## Validating without AWS credentials
