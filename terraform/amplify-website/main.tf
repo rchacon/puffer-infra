@@ -1,9 +1,9 @@
-# Amplify Hosting for the Puffer Panic marketing site (rchacon/pufferpanic.com
-# on GitHub; local clone directory puffer-website) -- an Astro static site,
-# no client-side router (`astro build` emits one index.html per route, no
-# SPA fallback needed). This module claims the apex (pufferpanic.com) and
-# www -- see ../amplify/variables.tf's subdomain_prefixes comment and
-# domain-layout notes: ../amplify is only ever allowed the `app` prefix.
+# Amplify Hosting for the Puffer Panic marketing site (rchacon/puffer-website
+# on GitHub) -- an Astro static site, no client-side router (`astro build`
+# emits one index.html per route, no SPA fallback needed). This module
+# claims the apex (pufferpanic.com) and www -- see
+# ../amplify/variables.tf's subdomain_prefixes comment and domain-layout
+# notes: ../amplify is only ever allowed the `app` prefix.
 #
 # No build_spec override here: unlike puffer-panic, this repo already
 # commits its own amplify.yml (pins Node 22 via nvm, `npm ci`, `npm run
@@ -12,7 +12,7 @@
 #
 # One-time manual prerequisites before `terraform apply` works (see
 # terraform/README.md): install the AWS Amplify GitHub App for
-# rchacon/pufferpanic.com AND add that repo to the App's repository access
+# rchacon/puffer-website AND add that repo to the App's repository access
 # list (both steps -- the second is easy to miss and its build failure,
 # "Unable to assume specified IAM Role", points nowhere near the real
 # cause). This is a separate GitHub App authorization from ../amplify's --

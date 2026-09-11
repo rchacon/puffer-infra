@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Terraform IaC for deploying two apps to AWS Amplify Hosting:
 [Puffer Panic](https://github.com/rchacon/puffer-panic) (a React 19 + Vite +
 TypeScript single-page game) and the Puffer Panic marketing site
-([rchacon/pufferpanic.com](https://github.com/rchacon/pufferpanic.com) on GitHub,
-cloned locally as `puffer-website` — an Astro static site).
+([rchacon/puffer-website](https://github.com/rchacon/puffer-website) — an Astro
+static site).
 
 Each directory under `terraform/` is its own Terraform root module with independent
 state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
@@ -24,7 +24,7 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
 - `amplify-website/` — the marketing site app (apex `pufferpanic.com` + `www`), same
   shape as `amplify/` (own `aws_amplify_app`/branch, own gated domain association +
   Cloudflare records, own two-pass apply). Unlike `amplify/`, it has no `build_spec`
-  override — the `pufferpanic.com` repo commits its own `amplify.yml` that Amplify
+  override — the `puffer-website` repo commits its own `amplify.yml` that Amplify
   auto-detects.
 
 Modules read account-specific values (state bucket name, Cloudflare token/zone,
@@ -53,7 +53,7 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
 - **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
   do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
   App's repository access list (GitHub → Settings → Applications). This applies
-  separately to `rchacon/puffer-panic` (for `amplify/`) and `rchacon/pufferpanic.com`
+  separately to `rchacon/puffer-panic` (for `amplify/`) and `rchacon/puffer-website`
   (for `amplify-website/`). The `github_access_token` variable is only a classic PAT
   with `admin:repo_hook` scope, used once at `CreateApp` to register the webhook.
 - **Two-pass apply**, for both `amplify/` and `amplify-website/`. First apply with

@@ -10,7 +10,7 @@ then `amplify/` and `amplify-website/` (independent of each other, any order).
   anything the AWS provider's standard credential chain picks up)
 - For `amplify/` and `amplify-website/` (same requirements, against different repos):
   - The **AWS Amplify GitHub App** installed/authorized for the app's repo
-    (`rchacon/puffer-panic` for `amplify/`, `rchacon/pufferpanic.com` for
+    (`rchacon/puffer-panic` for `amplify/`, `rchacon/puffer-website` for
     `amplify-website/`), **and** that repo added to the App's repository access list
     (GitHub → Settings → Applications → AWS Amplify → Configure) — each repo has to be
     added individually. Both steps are required — a missing repo on the access list
@@ -114,7 +114,7 @@ curl -sI https://app.pufferpanic.com | head -1
 
 ## `amplify-website/` — marketing site Amplify Hosting + Cloudflare DNS
 
-Same shape as `amplify/`, against `rchacon/pufferpanic.com` and the apex/`www`
+Same shape as `amplify/`, against `rchacon/puffer-website` and the apex/`www`
 instead. Unlike `amplify/`, there's no `build_spec` to worry about — the repo already
 commits its own `amplify.yml` and Amplify auto-detects it.
 

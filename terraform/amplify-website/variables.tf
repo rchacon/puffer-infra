@@ -15,9 +15,9 @@ variable "state_bucket_name" {
 }
 
 variable "github_repository" {
-  description = "GitHub repository URL the Amplify app builds from. Requires the AWS Amplify GitHub App to already be installed/authorized for this repo AND the repo added to the App's repository access list (one-time manual steps -- see terraform/README.md). Note this repo is named pufferpanic.com on GitHub, not puffer-website -- that's the local clone's directory name only."
+  description = "GitHub repository URL the Amplify app builds from. Requires the AWS Amplify GitHub App to already be installed/authorized for this repo AND the repo added to the App's repository access list (one-time manual steps -- see terraform/README.md)."
   type        = string
-  default     = "https://github.com/rchacon/pufferpanic.com"
+  default     = "https://github.com/rchacon/puffer-website"
 }
 
 # See ../amplify/variables.tf for why CreateApp always needs a token even
