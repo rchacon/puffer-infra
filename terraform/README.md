@@ -39,10 +39,10 @@ terraform apply
 terraform output   # note state_bucket_name
 ```
 
-The `state_bucket_name` output is what `amplify/`'s `backend.hcl` and
-`terraform.tfvars` need below — Terraform backend blocks can't reference outputs, and
-`bootstrap/` has no S3 backend to read via `terraform_remote_state`, so the value is
-copied by hand.
+The `state_bucket_name` output is what `amplify/`'s and `amplify-website/`'s
+`backend.hcl` and `terraform.tfvars` need below — Terraform backend blocks can't
+reference outputs, and `bootstrap/` has no S3 backend to read via
+`terraform_remote_state`, so the value is copied by hand into each module's files.
 
 ## `amplify/` — Amplify Hosting + Cloudflare DNS
 

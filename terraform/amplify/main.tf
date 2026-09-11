@@ -65,6 +65,7 @@ resource "aws_amplify_app" "puffer_panic" {
 
   tags = {
     Project = "puffer-panic"
+    App     = "game"
   }
 }
 
@@ -77,6 +78,7 @@ resource "aws_amplify_branch" "main" {
 
   tags = {
     Project = "puffer-panic"
+    App     = "game"
   }
 }
 
