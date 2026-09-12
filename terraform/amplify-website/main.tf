@@ -81,8 +81,21 @@ locals {
 }
 
 # ACM domain-ownership validation record for the Amplify-managed cert.
+#
+# Disabled (count = 0), confirmed in production, not just theorized: this
+# domain association's certificate_verification_dns_record came back
+# *non-empty* but byte-for-byte identical (same name, type, and content) to
+# the record ../amplify already manages -- ACM reused ../amplify's
+# already-validated cert for pufferpanic.com rather than issuing a new one.
+# The precondition below only guards the empty-string case (see
+# ../amplify/main.tf's comment block); this is the other reuse outcome,
+# where Cloudflare's provider errors "expected DNS record to not already be
+# present but already exists" instead. Since the record already exists
+# (owned by ../amplify's state) and already satisfies verification, there is
+# nothing for this module to create. Re-enable (count = 1) only if a future
+# apply shows local.cert_verification naming a genuinely different record.
 resource "cloudflare_record" "cert_verification" {
-  count = var.enable_custom_domain ? 1 : 0
+  count = 0
 
   zone_id = var.cloudflare_zone_id
   name    = try(trimsuffix(local.cert_verification[0], "."), "")
