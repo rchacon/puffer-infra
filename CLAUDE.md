@@ -4,8 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Terraform IaC for deploying [Puffer Panic](https://github.com/rchacon/puffer-panic)
-(a React 19 + Vite + TypeScript single-page app) to AWS Amplify Hosting.
+Terraform IaC for deploying two apps to AWS Amplify Hosting:
+[Puffer Panic](https://github.com/rchacon/puffer-panic) (a React 19 + Vite +
+TypeScript single-page game) and the Puffer Panic marketing site
+([rchacon/puffer-website](https://github.com/rchacon/puffer-website) — an Astro
+static site).
 
 Each directory under `terraform/` is its own Terraform root module with independent
 state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
@@ -14,10 +17,15 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
   state. Applied once with **local state** (there's nothing else yet to store its own
   state in). The state bucket uses the **AWS-managed `aws/s3` KMS key**, not a
   customer-managed key.
-- `amplify/` — the Amplify app + `main` branch, plus (gated behind
-  `enable_custom_domain`) the `aws_amplify_domain_association` and the Cloudflare DNS
-  records Amplify needs. Amplify manages its own ACM certificate for the domain, so
-  there is no ACM resource here.
+- `amplify/` — the Puffer Panic **game** app (`app.pufferpanic.com`) + `main` branch,
+  plus (gated behind `enable_custom_domain`) the `aws_amplify_domain_association` and
+  the Cloudflare DNS records Amplify needs. Amplify manages its own ACM certificate
+  for the domain, so there is no ACM resource here.
+- `amplify-website/` — the marketing site app (apex `pufferpanic.com` + `www`), same
+  shape as `amplify/` (own `aws_amplify_app`/branch, own gated domain association +
+  Cloudflare records, own two-pass apply). Unlike `amplify/`, it has no `build_spec`
+  override — the `puffer-website` repo commits its own `amplify.yml` that Amplify
+  auto-detects.
 
 Modules read account-specific values (state bucket name, Cloudflare token/zone,
 GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
@@ -26,27 +34,33 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
 
 ### Things worth knowing before touching this repo
 
-- **DNS is Cloudflare, not Route53.** `amplify/` manages only the specific
+- **DNS is Cloudflare, not Route53.** Each module manages only its own specific
   subdomain + certificate-verification records Amplify needs, as `cloudflare_record`
-  resources with `proxied = false` (grey-cloud) — Amplify already fronts the app with
+  resources with `proxied = false` (grey-cloud) — Amplify already fronts each app with
   its own CloudFront distribution, so proxying through Cloudflare on top would be two
   CDNs for no benefit and would likely break Amplify's domain verification.
-- **The Amplify app lives at `app.pufferpanic.com` only.** The apex
-  (`pufferpanic.com`) and `www` are reserved for a separate Puffer Panic marketing
-  site — don't add them to `subdomain_prefixes` or otherwise claim those records here.
+- **The domain is split by module, not just by app.** `amplify/` is only ever allowed
+  `subdomain_prefixes = ["app"]` (`app.pufferpanic.com`); `amplify-website/` owns the
+  apex + `www`. Don't add the apex/`www` to `amplify/`'s prefixes, and don't add `app`
+  to `amplify-website/`'s.
 - **Amplify's `dns_record` / `certificate_verification_dns_record` outputs are
   space-delimited strings** (`"<name> <TYPE> <VALUE>"`), parsed with `split(" ", ...)`
   and deliberately **not** `trimspace`d — the leading space on the empty-name apex
-  record is significant.
-- **The GitHub connection needs two manual, one-time steps** Terraform can't do:
-  install the AWS Amplify GitHub App for `rchacon/puffer-panic`, *and* add that repo
-  to the App's repository access list (GitHub → Settings → Applications). The
-  `github_access_token` variable is only a classic PAT with `admin:repo_hook` scope,
-  used once at `CreateApp` to register the webhook.
-- **Two-pass apply for `amplify/`.** First apply with `enable_custom_domain = false`
-  to stand up the app on its default `*.amplifyapp.com` URL and prove the build works;
-  then set `enable_custom_domain = true` (plus `domain_name` and the `cloudflare_*`
-  vars) and apply again to attach the custom domain.
+  record is significant. Since both modules' domain associations share one Cloudflare
+  zone, whichever applies its custom domain second may see ACM reuse the other's
+  already-validated cert — `certificate_verification_dns_record` comes back empty in
+  that case, guarded by each module's `cert_verification` precondition.
+- **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
+  do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
+  App's repository access list (GitHub → Settings → Applications). This applies
+  separately to `rchacon/puffer-panic` (for `amplify/`) and `rchacon/puffer-website`
+  (for `amplify-website/`). The `github_access_token` variable is only a classic PAT
+  with `admin:repo_hook` scope, used once at `CreateApp` to register the webhook.
+- **Two-pass apply**, for both `amplify/` and `amplify-website/`. First apply with
+  `enable_custom_domain = false` to stand up the app on its default
+  `*.amplifyapp.com` URL and prove the build works; then set `enable_custom_domain =
+  true` (plus `domain_name` and the `cloudflare_*` vars) and apply again to attach the
+  custom domain.
 
 ## Standing agreement on `terraform apply`
 
