@@ -1,4 +1,4 @@
-# Amplify Hosting for puffer-panic (rchacon/puffer-panic) -- a React 19 +
+# Amplify Hosting for puffer-panic (rchacon/puffer-app) -- a React 19 +
 # Vite 8 + TypeScript single-page app. `npm run build` runs `tsc -b && vite
 # build`; the output directory is Vite's default `dist`. The app has no
 # router and reads no VITE_* env vars (only Vite's built-in
