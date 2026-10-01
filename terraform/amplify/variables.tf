@@ -16,7 +16,7 @@ variable "state_bucket_name" {
 variable "github_repository" {
   description = "GitHub repository URL the Amplify app builds from. Requires the AWS Amplify GitHub App to already be installed/authorized for this repo AND the repo added to the App's repository access list (one-time manual steps -- see terraform/README.md)."
   type        = string
-  default     = "https://github.com/rchacon/puffer-panic"
+  default     = "https://github.com/rchacon/puffer-app"
 }
 
 # Confirmed by AWS's own docs (Amplify user guide, "Setting up the Amplify

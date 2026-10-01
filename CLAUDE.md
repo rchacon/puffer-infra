@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 Terraform IaC for deploying two apps to AWS Amplify Hosting:
-[Puffer Panic](https://github.com/rchacon/puffer-panic) (a React 19 + Vite +
+[Puffer Panic](https://github.com/rchacon/puffer-app) (a React 19 + Vite +
 TypeScript single-page game) and the Puffer Panic marketing site
 ([rchacon/puffer-website](https://github.com/rchacon/puffer-website) — an Astro
 static site).
@@ -53,7 +53,7 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
 - **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
   do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
   App's repository access list (GitHub → Settings → Applications). This applies
-  separately to `rchacon/puffer-panic` (for `amplify/`) and `rchacon/puffer-website`
+  separately to `rchacon/puffer-app` (for `amplify/`) and `rchacon/puffer-website`
   (for `amplify-website/`). The `github_access_token` variable is only a classic PAT
   with `admin:repo_hook` scope, used once at `CreateApp` to register the webhook.
 - **Two-pass apply**, for both `amplify/` and `amplify-website/`. First apply with

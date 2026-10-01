@@ -1,13 +1,13 @@
 # Puffer Infra
 
-AWS infrastructure as code for [Puffer Panic](https://github.com/rchacon/puffer-panic),
+AWS infrastructure as code for [Puffer Panic](https://github.com/rchacon/puffer-app),
 a small React reading game for kids, and its marketing site.
 
 Both apps are hosted on **AWS Amplify Hosting**, each built and auto-deployed from its
 own repo's `main` branch, and split across one domain (`pufferpanic.com`, registered
 and DNS-hosted in **Cloudflare**):
 
-- The game (`rchacon/puffer-panic`) at **app.pufferpanic.com**.
+- The game (`rchacon/puffer-app`) at **app.pufferpanic.com**.
 - The marketing site (`rchacon/puffer-website`) at **pufferpanic.com** (apex) and
   **www.pufferpanic.com**.
 
