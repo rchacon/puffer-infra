@@ -36,16 +36,17 @@ variable "branch_name" {
 }
 
 variable "domain_name" {
-  description = "Apex domain served by the Amplify app -- pufferpanic.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
+  description = "Apex domain served by the Amplify app -- pufferpower.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
   type        = string
-  default     = "pufferpanic.com"
+  default     = "pufferpower.com"
 }
 
 # Scoped to "Zone:DNS:Edit" on this one zone (Cloudflare dashboard -> My
 # Profile -> API Tokens -> Create Token -> "Edit zone DNS" template) --
 # never the legacy account-wide Global API Key. Can be the same token
 # ../amplify uses (same zone), just copied into this module's own tfvars --
-# root modules don't share variables.
+# root modules don't share variables. As with ../amplify, an apply that
+# changes cloudflare_zone_id needs the token to cover both the old and new zones.
 #
 # The default is a deliberate well-formed placeholder: the cloudflare
 # provider block is always instantiated and its api_token validator
@@ -77,7 +78,7 @@ variable "enable_custom_domain" {
 }
 
 variable "subdomain_prefixes" {
-  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"\", \"www\"] -> pufferpanic.com + www.pufferpanic.com. This is the marketing site's module -- it's the one place in this repo allowed to claim the apex/www records; keep ../amplify's subdomain_prefixes disjoint from these (currently [\"app\"])."
+  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"\", \"www\"] -> pufferpower.com + www.pufferpower.com. This is the marketing site's module -- it's the one place in this repo allowed to claim the apex/www records; keep ../amplify's subdomain_prefixes disjoint from these (currently [\"app\"])."
   type        = list(string)
   default     = ["", "www"]
 }

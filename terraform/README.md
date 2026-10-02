@@ -1,7 +1,8 @@
 # terraform/
 
 Each subdirectory is an independent Terraform root module. Apply `bootstrap/` once,
-then `amplify/` and `amplify-website/` (independent of each other, any order).
+then `amplify/` before `amplify-website/` (see the cert-reuse note under
+`amplify-website/`), then `legacy-domain-redirect/`.
 
 ## Prerequisites
 
@@ -22,7 +23,7 @@ then `amplify/` and `amplify-website/` (independent of each other, any order).
     Cloudflare**, a **Cloudflare API token** scoped `Zone:DNS:Edit` on that zone
     (dashboard → My Profile → API Tokens → "Edit zone DNS" template), and the
     **Zone ID** (dashboard → the domain's Overview tab). Both modules point at the
-    same `pufferpanic.com` zone — the token/zone ID can be reused, just copied into
+    same `pufferpower.com` zone — the token/zone ID can be reused, just copied into
     each module's own `terraform.tfvars`.
 
 ## `bootstrap/` — one-time state backend
@@ -89,10 +90,10 @@ confirm auto-build fires.
 
 ```hcl
 enable_custom_domain = true
-cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpanic.com zone>"
-cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
-# domain_name defaults to "pufferpanic.com"
-# subdomain_prefixes defaults to ["app"] -> app.pufferpanic.com; override if you want something else
+cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpower.com zone>"
+cloudflare_zone_id   = "<zone ID from the pufferpower.com Overview tab>"
+# domain_name defaults to "pufferpower.com"
+# subdomain_prefixes defaults to ["app"] -> app.pufferpower.com; override if you want something else
 ```
 
 ```bash
@@ -102,14 +103,14 @@ terraform apply
 
 The new Cloudflare records are additive (grey-cloud, `proxied = false`) and don't
 touch any existing zone records. This module only ever manages the `app` subdomain —
-the apex (`pufferpanic.com`) and `www` are reserved for a separate Puffer Panic
+the apex (`pufferpower.com`) and `www` are reserved for a separate Puffer Panic
 marketing site. Domain verification is asynchronous — watch the
 Amplify console's **Custom domains** tab (or re-run `terraform plan`); don't trust
 `apply`'s exit code for the domain association. Once it shows **Available**:
 
 ```bash
-dig +short app.pufferpanic.com
-curl -sI https://app.pufferpanic.com | head -1
+dig +short app.pufferpower.com
+curl -sI https://app.pufferpower.com | head -1
 ```
 
 ## `amplify-website/` — marketing site Amplify Hosting + Cloudflare DNS
@@ -152,10 +153,10 @@ trivial commit to `main` and confirm auto-build fires.
 
 ```hcl
 enable_custom_domain = true
-cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpanic.com zone>"
-cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
-# domain_name defaults to "pufferpanic.com"
-# subdomain_prefixes defaults to ["", "www"] -> pufferpanic.com + www.pufferpanic.com
+cloudflare_api_token = "<Zone:DNS:Edit token for the pufferpower.com zone>"
+cloudflare_zone_id   = "<zone ID from the pufferpower.com Overview tab>"
+# domain_name defaults to "pufferpower.com"
+# subdomain_prefixes defaults to ["", "www"] -> pufferpower.com + www.pufferpower.com
 ```
 
 ```bash
@@ -164,18 +165,92 @@ terraform apply
 ```
 
 This module only ever manages the apex + `www` — `amplify/`'s `app` record is
-untouched. If `amplify/`'s custom domain was applied first, ACM may reuse its
-already-validated `*.pufferpanic.com`-covering cert here; if so,
-`certificate_verification_dns_record` comes back empty and the
-`cloudflare_record.cert_verification` precondition tells you to comment that resource
-out and re-apply — no new validation record is needed in that case. Once the domain
-association shows **Available** in the Amplify console:
+untouched. Apply `amplify/`'s custom domain first: ACM then reuses its
+already-validated cert here, so `amplify-website/`'s `cloudflare_record.cert_verification`
+is disabled (`count = 0`) — the validation record it would create already exists in
+`amplify/`'s state. If a future apply shows this module needs a different validation
+record, set `count = 1` and re-apply. Once the domain association shows **Available**
+in the Amplify console:
 
 ```bash
-dig +short pufferpanic.com
-dig +short www.pufferpanic.com
-curl -sI https://pufferpanic.com | head -1
+dig +short pufferpower.com
+dig +short www.pufferpower.com
+curl -sI https://pufferpower.com | head -1
 ```
+
+## `legacy-domain-redirect/` — pufferpanic.com → pufferpower.com redirects
+
+The app's original domain, `pufferpanic.com`, was retired because "Puffer Panic" is
+already the name of an unrelated iOS app. The zone stays in Cloudflare, but it now
+only redirects: `pufferpanic.com`, `www.pufferpanic.com` and `app.pufferpanic.com`
+each send a `301` to the same host and path on `pufferpower.com`, with the query
+string preserved. The module creates one proxied (orange-cloud) `AAAA 100::`
+placeholder record per hostname, plus a Cloudflare Single Redirect ruleset. No
+Amplify domain association exists on `pufferpanic.com`. `api` is added to
+`redirect_prefixes` once the API (#4) ships on `api.pufferpower.com`.
+
+Needs a Cloudflare API token with **Zone:DNS:Edit** *and* **Zone:Single Redirect:Edit**
+on the `pufferpanic.com` zone (it can be the same token as the Amplify modules, if
+that token has both permissions on both zones).
+
+```bash
+cd terraform/legacy-domain-redirect
+
+cat > backend.hcl <<EOF
+bucket  = "<state_bucket_name from bootstrap output>"
+key     = "legacy-domain-redirect/terraform.tfstate"
+region  = "us-west-2"
+encrypt = true
+EOF
+
+cat > terraform.tfvars <<EOF
+cloudflare_api_token = "<token: Zone:DNS:Edit + Zone:Single Redirect:Edit on pufferpanic.com>"
+cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
+EOF
+
+terraform init -backend-config=backend.hcl
+terraform plan    # expect: 3 cloudflare_record + 1 cloudflare_ruleset
+terraform apply
+```
+
+```bash
+curl -sI 'https://app.pufferpanic.com/foo?x=1' | grep -iE '^(HTTP|location)'
+# HTTP/2 301
+# location: https://app.pufferpower.com/foo?x=1
+```
+
+### Cutover order (one-time, pufferpanic.com → pufferpower.com)
+
+The redirect records have the same names as the old Amplify records in
+`pufferpanic.com`, so they can only be created once the Amplify modules have moved off
+that zone. Expect downtime on the old domain: `app.pufferpanic.com` goes down at
+step 1, and the apex and `www` go down at step 2. Neither comes back until step 3
+adds the redirects. The Amplify modules don't wait for domain verification
+(`wait_for_verification = false`), so the new `pufferpower.com` hosts may not serve
+HTTPS until step 4 finishes. Until then, the step 3 redirects can land on hosts that
+aren't ready yet. Run the steps back to back.
+
+1. `amplify/`: in `terraform.tfvars`, point `cloudflare_zone_id` at the `pufferpower.com`
+   zone, with a token that has DNS:Edit on **both** zones. The plan should replace the
+   domain association and the Cloudflare records (destroyed in the old zone, created
+   in the new zone). Apply.
+2. `amplify-website/`: same change → plan → apply.
+3. `legacy-domain-redirect/`: set it up as above → plan → apply.
+4. Wait for both apps' custom domains to show **Available**. `amplify-website/` creates
+   no cert-verification record of its own (`count = 0`; it relies on reusing
+   `amplify/`'s), and nothing in Terraform checks that this still holds on the new
+   domain. Confirm it yourself:
+
+   ```bash
+   for app in <amplify app_id> <amplify-website app_id>; do
+     aws amplify get-domain-association --app-id "$app" --domain-name pufferpower.com \
+       --query 'domainAssociation.[domainStatus,certificateVerificationDNSRecord]' --output text
+   done
+   ```
+
+   If the website's verification record differs from the game's, or it is stuck in
+   `PENDING_VERIFICATION`, set `amplify-website/`'s `cloudflare_record.cert_verification`
+   to `count = 1` and re-apply.
 
 ## Validating without AWS credentials
 

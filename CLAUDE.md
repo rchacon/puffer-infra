@@ -17,15 +17,19 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
   state. Applied once with **local state** (there's nothing else yet to store its own
   state in). The state bucket uses the **AWS-managed `aws/s3` KMS key**, not a
   customer-managed key.
-- `amplify/` — the Puffer Panic **game** app (`app.pufferpanic.com`) + `main` branch,
+- `amplify/` — the Puffer Panic **game** app (`app.pufferpower.com`) + `main` branch,
   plus (gated behind `enable_custom_domain`) the `aws_amplify_domain_association` and
   the Cloudflare DNS records Amplify needs. Amplify manages its own ACM certificate
   for the domain, so there is no ACM resource here.
-- `amplify-website/` — the marketing site app (apex `pufferpanic.com` + `www`), same
+- `amplify-website/` — the marketing site app (apex `pufferpower.com` + `www`), same
   shape as `amplify/` (own `aws_amplify_app`/branch, own gated domain association +
   Cloudflare records, own two-pass apply). Unlike `amplify/`, it has no `build_spec`
   override — the `puffer-website` repo commits its own `amplify.yml` that Amplify
   auto-detects.
+- `legacy-domain-redirect/` — the retired `pufferpanic.com` zone. It holds proxied
+  placeholder records plus a Cloudflare Single Redirect ruleset that 301s
+  `pufferpanic.com` / `www` / `app` to the same host on `pufferpower.com`, keeping the
+  path and query string. No AWS resources.
 
 Modules read account-specific values (state bucket name, Cloudflare token/zone,
 GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
@@ -39,8 +43,16 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
   resources with `proxied = false` (grey-cloud) — Amplify already fronts each app with
   its own CloudFront distribution, so proxying through Cloudflare on top would be two
   CDNs for no benefit and would likely break Amplify's domain verification.
+  The **one exception** is `legacy-domain-redirect/`: its `pufferpanic.com` records
+  are `proxied = true` (`AAAA 100::` placeholders), because there Cloudflare's edge is
+  what answers, with the redirect.
+- **`pufferpower.com` is the primary domain; `pufferpanic.com` is redirect-only.** The
+  app was renamed because "Puffer Panic" collides with an existing iOS app. Never point
+  an Amplify domain association (or a future AppSync custom domain) at
+  `pufferpanic.com`. New hostnames go on `pufferpower.com`. If an old hostname needs to
+  keep working, add its prefix to `legacy-domain-redirect/`'s `redirect_prefixes`.
 - **The domain is split by module, not just by app.** `amplify/` is only ever allowed
-  `subdomain_prefixes = ["app"]` (`app.pufferpanic.com`); `amplify-website/` owns the
+  `subdomain_prefixes = ["app"]` (`app.pufferpower.com`); `amplify-website/` owns the
   apex + `www`. Don't add the apex/`www` to `amplify/`'s prefixes, and don't add `app`
   to `amplify-website/`'s.
 - **Amplify's `dns_record` / `certificate_verification_dns_record` outputs are

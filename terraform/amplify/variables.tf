@@ -40,14 +40,17 @@ variable "branch_name" {
 }
 
 variable "domain_name" {
-  description = "Apex domain served by the Amplify app -- pufferpanic.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
+  description = "Apex domain served by the Amplify app -- pufferpower.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
   type        = string
-  default     = "pufferpanic.com"
+  default     = "pufferpower.com"
 }
 
 # Scoped to "Zone:DNS:Edit" on this one zone (Cloudflare dashboard -> My
 # Profile -> API Tokens -> Create Token -> "Edit zone DNS" template) --
-# never the legacy account-wide Global API Key.
+# never the legacy account-wide Global API Key. Exception: an apply that
+# changes cloudflare_zone_id (e.g. the pufferpanic.com -> pufferpower.com
+# move) destroys records in the old zone and creates them in the new one,
+# so for that apply the token needs DNS:Edit on both zones.
 #
 # The default is a deliberate well-formed placeholder: the cloudflare
 # provider block is always instantiated and its api_token validator
@@ -79,7 +82,7 @@ variable "enable_custom_domain" {
 }
 
 variable "subdomain_prefixes" {
-  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"app\"] -> app.pufferpanic.com. Keep it to app: the apex (pufferpanic.com) and www are reserved for a separate Puffer Panic marketing site and must not be claimed by this module."
+  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"app\"] -> app.pufferpower.com. Keep it to app: the apex (pufferpower.com) and www are reserved for a separate Puffer Panic marketing site and must not be claimed by this module."
   type        = list(string)
   default     = ["app"]
 }

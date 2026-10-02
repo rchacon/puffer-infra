@@ -1,7 +1,7 @@
 # Amplify Hosting for the Puffer Panic marketing site (rchacon/puffer-website
 # on GitHub) -- an Astro static site, no client-side router (`astro build`
 # emits one index.html per route, no SPA fallback needed). This module
-# claims the apex (pufferpanic.com) and www -- see
+# claims the apex (pufferpower.com) and www -- see
 # ../amplify/variables.tf's subdomain_prefixes comment and domain-layout
 # notes: ../amplify is only ever allowed the `app` prefix.
 #
@@ -86,7 +86,10 @@ locals {
 # domain association's certificate_verification_dns_record came back
 # *non-empty* but byte-for-byte identical (same name, type, and content) to
 # the record ../amplify already manages -- ACM reused ../amplify's
-# already-validated cert for pufferpanic.com rather than issuing a new one.
+# already-validated cert for the domain rather than issuing a new one.
+# (Observed on the original pufferpanic.com deploy, before the move to
+# pufferpower.com. It depends on ../amplify applying its custom domain
+# first, so keep that order when changing domains.)
 # The precondition below only guards the empty-string case (see
 # ../amplify/main.tf's comment block); this is the other reuse outcome,
 # where Cloudflare's provider errors "expected DNS record to not already be
@@ -107,7 +110,7 @@ resource "cloudflare_record" "cert_verification" {
   lifecycle {
     precondition {
       condition     = length(local.cert_verification) == 3
-      error_message = "aws_amplify_domain_association.puffer_website returned an empty certificate_verification_dns_record for ${var.domain_name} -- ACM reused an already-validated certificate (e.g. ../amplify's app.pufferpanic.com cert validated first), so there is no new validation record to create. Comment out cloudflare_record.cert_verification and re-apply; the domain still verifies against the existing record."
+      error_message = "aws_amplify_domain_association.puffer_website returned an empty certificate_verification_dns_record for ${var.domain_name} -- ACM reused an already-validated certificate (e.g. ../amplify's app.${var.domain_name} cert validated first), so there is no new validation record to create. Comment out cloudflare_record.cert_verification and re-apply; the domain still verifies against the existing record."
     }
   }
 }
