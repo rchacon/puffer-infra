@@ -223,7 +223,12 @@ curl -sI 'https://app.pufferpanic.com/foo?x=1' | grep -iE '^(HTTP|location)'
 
 The redirect records have the same names as the old Amplify records in
 `pufferpanic.com`, so they can only be created once the Amplify modules have moved off
-that zone. `pufferpanic.com` is down for a few minutes between steps 2 and 3.
+that zone. Expect downtime on the old domain: `app.pufferpanic.com` goes down at
+step 1, and the apex and `www` go down at step 2. Neither comes back until step 3
+adds the redirects. The Amplify modules don't wait for domain verification
+(`wait_for_verification = false`), so the new `pufferpower.com` hosts may not serve
+HTTPS until step 4 finishes. Until then, the step 3 redirects can land on hosts that
+aren't ready yet. Run the steps back to back.
 
 1. `amplify/`: in `terraform.tfvars`, point `cloudflare_zone_id` at the `pufferpower.com`
    zone, with a token that has DNS:Edit on **both** zones. The plan should replace the
@@ -231,7 +236,21 @@ that zone. `pufferpanic.com` is down for a few minutes between steps 2 and 3.
    in the new zone). Apply.
 2. `amplify-website/`: same change → plan → apply.
 3. `legacy-domain-redirect/`: set it up as above → plan → apply.
-4. Wait for both apps' custom domains to show **Available** in the Amplify console.
+4. Wait for both apps' custom domains to show **Available**. `amplify-website/` creates
+   no cert-verification record of its own (`count = 0`; it relies on reusing
+   `amplify/`'s), and nothing in Terraform checks that this still holds on the new
+   domain. Confirm it yourself:
+
+   ```bash
+   for app in <amplify app_id> <amplify-website app_id>; do
+     aws amplify get-domain-association --app-id "$app" --domain-name pufferpower.com \
+       --query 'domainAssociation.[domainStatus,certificateVerificationDNSRecord]' --output text
+   done
+   ```
+
+   If the website's verification record differs from the game's, or it is stuck in
+   `PENDING_VERIFICATION`, set `amplify-website/`'s `cloudflare_record.cert_verification`
+   to `count = 1` and re-apply.
 
 ## Validating without AWS credentials
 
