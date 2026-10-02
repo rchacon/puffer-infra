@@ -13,7 +13,7 @@ output "default_domain" {
 }
 
 output "custom_domain_urls" {
-  description = "puffer-panic's custom domain URLs, one per served subdomain prefix (empty until enable_custom_domain = true). With the defaults: [\"https://app.pufferpanic.com\"]."
+  description = "puffer-panic's custom domain URLs, one per served subdomain prefix (empty until enable_custom_domain = true). With the defaults: [\"https://app.pufferpower.com\"]."
   value = var.enable_custom_domain ? [
     for p in var.subdomain_prefixes : "https://${p == "" ? "" : "${p}."}${var.domain_name}"
   ] : []

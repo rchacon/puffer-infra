@@ -28,7 +28,7 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Same pufferpanic.com zone as ../amplify (this module claims the apex + www
+# Same pufferpower.com zone as ../amplify (this module claims the apex + www
 # records there instead of the app record) -- see main.tf.
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
