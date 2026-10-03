@@ -116,8 +116,7 @@ curl -sI https://app.pufferpower.com | head -1
 ## `amplify-website/` — marketing site Amplify Hosting + Cloudflare DNS
 
 Same shape as `amplify/`, against `rchacon/puffer-website` and the apex/`www`
-instead. Unlike `amplify/`, there's no `build_spec` to worry about — the repo already
-commits its own `amplify.yml` and Amplify auto-detects it.
+instead.
 
 ```bash
 cd terraform/amplify-website

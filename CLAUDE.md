@@ -23,9 +23,7 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
   for the domain, so there is no ACM resource here.
 - `amplify-website/` — the marketing site app (apex `pufferpower.com` + `www`), same
   shape as `amplify/` (own `aws_amplify_app`/branch, own gated domain association +
-  Cloudflare records, own two-pass apply). Unlike `amplify/`, it has no `build_spec`
-  override — the `puffer-website` repo commits its own `amplify.yml` that Amplify
-  auto-detects.
+  Cloudflare records, own two-pass apply).
 - `legacy-domain-redirect/` — the retired `pufferpanic.com` zone. It holds proxied
   placeholder records plus a Cloudflare Single Redirect ruleset that 301s
   `pufferpanic.com` / `www` / `app` to the same host on `pufferpower.com`, keeping the
@@ -62,6 +60,10 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
   zone, whichever applies its custom domain second may see ACM reuse the other's
   already-validated cert — `certificate_verification_dns_record` comes back empty in
   that case, guarded by each module's `cert_verification` precondition.
+- **Neither Amplify module sets `build_spec`.** Each app repo (`puffer-app`,
+  `puffer-website`) commits its own repo-root `amplify.yml`, which always takes
+  precedence over the app's `build_spec`. Change a build in the app repo, not here.
+  Rewrites (`custom_rule`) aren't part of `amplify.yml`, so those stay in Terraform.
 - **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
   do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
   App's repository access list (GitHub → Settings → Applications). This applies
