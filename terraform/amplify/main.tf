@@ -1,9 +1,13 @@
-# Amplify Hosting for puffer-panic (rchacon/puffer-app) -- a React 19 +
-# Vite 8 + TypeScript single-page app. `npm run build` runs `tsc -b && vite
-# build`; the output directory is Vite's default `dist`. The app has no
-# router and reads no VITE_* env vars (only Vite's built-in
-# import.meta.env.BASE_URL), so this is a plain single-app build, no
-# environment_variables block needed.
+# Amplify Hosting for the Puffer Panic game (rchacon/puffer-app) -- an
+# npm-workspaces monorepo with the game (React 19 + Vite + TypeScript) in
+# apps/game/.
+#
+# No build_spec here: puffer-app commits its own repo-root amplify.yml
+# (Node 22 pin, `npm ci` with an .npm download cache, `npm run build`,
+# baseDirectory apps/game/dist), and a repo-root amplify.yml always takes
+# precedence over the app's build_spec anyway. Keeping the build spec in the
+# app repo means a change to the build output path ships atomically with the
+# code that causes it. Change the game's build there, not here.
 #
 # One-time manual prerequisites before `terraform apply` works (see
 # terraform/README.md): install the AWS Amplify GitHub App for the repo
@@ -17,46 +21,19 @@ resource "aws_amplify_app" "puffer_panic" {
   access_token = var.github_access_token
   platform     = "WEB"
 
-  # The repo has no .nvmrc / package.json "engines", and Vite 8 requires
-  # Node 20.19+ or 22.12+ -- pin it explicitly here rather than relying on
-  # whatever the Amplify build image happens to default to. `nvm` is
-  # preinstalled on Amplify's managed build image with several Node
-  # versions available.
-  build_spec = <<-YAML
-    version: 1
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            - nvm use 22 || nvm install 22
-            - npm ci --cache .npm --prefer-offline
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: dist
-        files:
-          - '**/*'
-      # Cache npm's download cache, not node_modules: `npm ci` deletes
-      # node_modules before installing, so caching it buys nothing --
-      # caching .npm lets `npm ci --prefer-offline` install from local
-      # tarballs instead of re-downloading every package each build.
-      cache:
-        paths:
-          - .npm/**/*
-  YAML
-
-  # SPA fallback rewrite. puffer-panic has no client-side router, so this
-  # isn't strictly required for the app to work, but it's harmless and
-  # keeps direct navigation / refreshes on any unknown path returning the
-  # app instead of a raw 404. This is AWS's own documented unconditional
-  # regex form, NOT the fragile "/<*>" -> "/index.html" 404-200 pattern
-  # (cd-infra hit real production breakage with the latter, #33): match any
-  # path with no recognized static-file extension and rewrite to
-  # index.html. The extension list must be exhaustive -- anything omitted
-  # gets rewritten to text/html and breaks. `mp3`/`wav` are in the list
-  # because puffer-panic ships committed audio clips under public/audio/
-  # that end up as real files at /audio/*.mp3 in the deploy.
+  # SPA fallback rewrite. Unlike the build spec, this stays in Terraform:
+  # rewrites/redirects aren't part of amplify.yml, so this rule is live
+  # config. puffer-panic has no client-side router, so this isn't strictly
+  # required for the app to work, but it's harmless and keeps direct
+  # navigation / refreshes on any unknown path returning the app instead of
+  # a raw 404. This is AWS's own documented unconditional regex form, NOT
+  # the fragile "/<*>" -> "/index.html" 404-200 pattern (cd-infra hit real
+  # production breakage with the latter, #33): match any path with no
+  # recognized static-file extension and rewrite to index.html. The
+  # extension list must be exhaustive -- anything omitted gets rewritten to
+  # text/html and breaks. `mp3`/`wav` are in the list because puffer-panic
+  # ships committed audio clips under apps/game/public/audio/ that end up as
+  # real files at /audio/*.mp3 in the deploy.
   custom_rule {
     source = "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|json|map|mp3|png|svg|ttf|txt|wav|webp|woff|woff2)$)([^.]+$)/>"
     target = "/index.html"

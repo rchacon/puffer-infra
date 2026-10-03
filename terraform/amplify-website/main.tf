@@ -5,7 +5,7 @@
 # ../amplify/variables.tf's subdomain_prefixes comment and domain-layout
 # notes: ../amplify is only ever allowed the `app` prefix.
 #
-# No build_spec override here: unlike puffer-panic, this repo already
+# No build_spec override here (same as ../amplify): this repo already
 # commits its own amplify.yml (pins Node 22 via nvm, `npm ci`, `npm run
 # build`, dist baseDirectory) -- Amplify auto-detects and uses it, so
 # duplicating it into Terraform would just be two copies to keep in sync.
