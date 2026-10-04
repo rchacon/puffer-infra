@@ -1,4 +1,4 @@
-# Amplify Hosting for the Puffer Panic marketing site (rchacon/puffer-website
+# Amplify Hosting for the Puffer Power marketing site (rchacon/puffer-website
 # on GitHub) -- an Astro static site, no client-side router (`astro build`
 # emits one index.html per route, no SPA fallback needed). This module
 # claims the apex (pufferpower.com) and www -- see
@@ -25,7 +25,7 @@ resource "aws_amplify_app" "puffer_website" {
   platform     = "WEB"
 
   tags = {
-    Project = "puffer-panic"
+    Project = "puffer-power"
     App     = "website"
   }
 }
@@ -38,7 +38,7 @@ resource "aws_amplify_branch" "main" {
   stage             = "PRODUCTION"
 
   tags = {
-    Project = "puffer-panic"
+    Project = "puffer-power"
     App     = "website"
   }
 }

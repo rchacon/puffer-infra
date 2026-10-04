@@ -1,4 +1,5 @@
-# Amplify Hosting for the Puffer Panic game (rchacon/puffer-app) -- an
+# Amplify Hosting for the Puffer Power game's home edition
+# (app.pufferpower.com; rchacon/puffer-app) -- an
 # npm-workspaces monorepo with the game (React 19 + Vite + TypeScript) in
 # apps/game/.
 #
@@ -15,15 +16,15 @@
 # second is easy to miss and its build failure, "Unable to assume
 # specified IAM Role", points nowhere near the real cause).
 
-resource "aws_amplify_app" "puffer_panic" {
-  name         = "puffer-panic"
+resource "aws_amplify_app" "puffer_home" {
+  name         = "puffer-home"
   repository   = var.github_repository
   access_token = var.github_access_token
   platform     = "WEB"
 
   # SPA fallback rewrite. Unlike the build spec, this stays in Terraform:
   # rewrites/redirects aren't part of amplify.yml, so this rule is live
-  # config. puffer-panic has no client-side router, so this isn't strictly
+  # config. The game has no client-side router, so this isn't strictly
   # required for the app to work, but it's harmless and keeps direct
   # navigation / refreshes on any unknown path returning the app instead of
   # a raw 404. This is AWS's own documented unconditional regex form, NOT
@@ -31,7 +32,7 @@ resource "aws_amplify_app" "puffer_panic" {
   # production breakage with the latter, #33): match any path with no
   # recognized static-file extension and rewrite to index.html. The
   # extension list must be exhaustive -- anything omitted gets rewritten to
-  # text/html and breaks. `mp3`/`wav` are in the list because puffer-panic
+  # text/html and breaks. `mp3`/`wav` are in the list because the game
   # ships committed audio clips under apps/game/public/audio/ that end up as
   # real files at /audio/*.mp3 in the deploy.
   custom_rule {
@@ -41,21 +42,21 @@ resource "aws_amplify_app" "puffer_panic" {
   }
 
   tags = {
-    Project = "puffer-panic"
-    App     = "game"
+    Project = "puffer-power"
+    App     = "home"
   }
 }
 
 resource "aws_amplify_branch" "main" {
-  app_id      = aws_amplify_app.puffer_panic.id
+  app_id      = aws_amplify_app.puffer_home.id
   branch_name = var.branch_name
 
   enable_auto_build = true
   stage             = "PRODUCTION"
 
   tags = {
-    Project = "puffer-panic"
-    App     = "game"
+    Project = "puffer-power"
+    App     = "home"
   }
 }
 
@@ -72,10 +73,10 @@ resource "aws_amplify_branch" "main" {
 # resource. Amplify provisions and manages its own ACM certificate for the
 # domain association -- unlike Cognito / API Gateway custom domains, there
 # is no ACM resource to declare here.
-resource "aws_amplify_domain_association" "puffer_panic" {
+resource "aws_amplify_domain_association" "puffer_home" {
   count = var.enable_custom_domain ? 1 : 0
 
-  app_id                = aws_amplify_app.puffer_panic.id
+  app_id                = aws_amplify_app.puffer_home.id
   domain_name           = var.domain_name
   wait_for_verification = false
 
@@ -117,10 +118,10 @@ resource "aws_amplify_domain_association" "puffer_panic" {
 # driven by var.subdomain_prefixes (known at plan time), and only indexes
 # into that map with those known keys.
 locals {
-  cert_verification = var.enable_custom_domain ? split(" ", aws_amplify_domain_association.puffer_panic[0].certificate_verification_dns_record) : []
+  cert_verification = var.enable_custom_domain ? split(" ", aws_amplify_domain_association.puffer_home[0].certificate_verification_dns_record) : []
 
   sub_records = var.enable_custom_domain ? {
-    for sd in aws_amplify_domain_association.puffer_panic[0].sub_domain :
+    for sd in aws_amplify_domain_association.puffer_home[0].sub_domain :
     sd.prefix => split(" ", sd.dns_record)
   } : {}
 }
@@ -139,7 +140,7 @@ resource "cloudflare_record" "cert_verification" {
   lifecycle {
     precondition {
       condition     = length(local.cert_verification) == 3
-      error_message = "aws_amplify_domain_association.puffer_panic returned an empty certificate_verification_dns_record for ${var.domain_name} -- ACM reused an already-validated certificate, so there is no new validation record to create. Comment out cloudflare_record.cert_verification and re-apply; the domain still verifies against the existing record."
+      error_message = "aws_amplify_domain_association.puffer_home returned an empty certificate_verification_dns_record for ${var.domain_name} -- ACM reused an already-validated certificate, so there is no new validation record to create. Comment out cloudflare_record.cert_verification and re-apply; the domain still verifies against the existing record."
     }
   }
 }
@@ -166,7 +167,22 @@ resource "cloudflare_record" "subdomain" {
   lifecycle {
     precondition {
       condition     = try(length(local.sub_records[each.value]) == 3, false)
-      error_message = "aws_amplify_domain_association.puffer_panic returned no dns_record for subdomain prefix '${each.key}' yet. Re-run `terraform apply` once the domain association has registered with Amplify."
+      error_message = "aws_amplify_domain_association.puffer_home returned no dns_record for subdomain prefix '${each.key}' yet. Re-run `terraform apply` once the domain association has registered with Amplify."
     }
   }
+}
+
+# Renamed from puffer_panic (the pre-rebrand name). These keep existing
+# state -- the app in the original account -- as an in-place rename rather
+# than a destroy-and-recreate. Safe to delete once no state anywhere still
+# has the old addresses (i.e. after puffer-infra#11 retires the original
+# account's app).
+moved {
+  from = aws_amplify_app.puffer_panic
+  to   = aws_amplify_app.puffer_home
+}
+
+moved {
+  from = aws_amplify_domain_association.puffer_panic
+  to   = aws_amplify_domain_association.puffer_home
 }
