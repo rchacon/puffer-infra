@@ -1,6 +1,6 @@
 # Puffer Infra
 
-AWS infrastructure as code for [Puffer Panic](https://github.com/rchacon/puffer-app),
+AWS infrastructure as code for [Puffer Power](https://github.com/rchacon/puffer-app),
 a small React reading game for kids, and its marketing site.
 
 Both apps are hosted on **AWS Amplify Hosting**, each built and auto-deployed from its

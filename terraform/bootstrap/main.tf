@@ -25,8 +25,20 @@ data "aws_caller_identity" "current" {}
 
 # Bucket name includes the account ID since S3 bucket names must be
 # globally unique across every AWS account, not just this one.
+#
+# prevent_destroy: a bucket name can't be changed in place, so any future
+# edit to the name (like the puffer-panic -> puffer-power rename) would
+# otherwise plan a destroy-and-recreate of the bucket holding every other
+# module's state. With this, such a plan errors out instead. In particular,
+# the legacy bucket in the original account (puffer-panic-terraform-state-
+# 658430303091, tracked in this directory's default local state) must never
+# be re-applied from this config -- see puffer-infra#11 for retiring it.
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "puffer-panic-terraform-state-${data.aws_caller_identity.current.account_id}"
+  bucket = "puffer-power-terraform-state-${data.aws_caller_identity.current.account_id}"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket_versioning" "terraform_state" {

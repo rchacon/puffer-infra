@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 Terraform IaC for deploying two apps to AWS Amplify Hosting:
-[Puffer Panic](https://github.com/rchacon/puffer-app) (a React 19 + Vite +
-TypeScript single-page game) and the Puffer Panic marketing site
+[Puffer Power](https://github.com/rchacon/puffer-app) (a React 19 + Vite +
+TypeScript single-page game) and the Puffer Power marketing site
 ([rchacon/puffer-website](https://github.com/rchacon/puffer-website) — an Astro
 static site).
 
