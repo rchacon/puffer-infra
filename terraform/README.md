@@ -177,6 +177,66 @@ dig +short www.pufferpower.com
 curl -sI https://pufferpower.com | head -1
 ```
 
+## `amplify-classroom/` — classroom edition (class.pufferpower.com)
+
+A second Amplify app for `rchacon/puffer-app`: the same repo, branch and repo-root
+`amplify.yml` as `amplify/`, so both rebuild on every push to `main`. It's the free
+**school-pilot build**: guest play only, storing nothing outside the browser.
+
+What makes it different is its build environment, not its code. It sets
+`VITE_EDITION=classroom` and **must never** be given the account/backend variables
+(`VITE_COGNITO_*`, `VITE_GRAPHQL_*`) that the home edition (`amplify/`) gets once the
+backend exists (#4). Without them, the game compiles with no account UI and makes no
+backend calls. A precondition on `aws_amplify_app.puffer_classroom` fails the plan if
+one is ever added here.
+
+No new GitHub App step: `rchacon/puffer-app` is already on the AWS Amplify GitHub App's
+access list from `amplify/`. A `github_access_token` (classic PAT, `admin:repo_hook`)
+is still needed for `CreateApp`'s webhook registration.
+
+```bash
+cd terraform/amplify-classroom
+
+cat > backend.hcl <<EOF
+bucket  = "<state_bucket_name from bootstrap output>"
+key     = "amplify-classroom/terraform.tfstate"
+region  = "us-west-2"
+encrypt = true
+EOF
+
+cat > terraform.tfvars <<EOF
+state_bucket_name   = "<state_bucket_name from bootstrap output>"
+github_access_token = "<classic PAT, scope admin:repo_hook only>"
+EOF
+
+terraform init -backend-config=backend.hcl
+terraform plan
+```
+
+**Pass 1: app on the default URL** (`enable_custom_domain` defaults to `false`):
+
+```bash
+terraform apply
+open "$(terraform output -raw default_domain)"
+```
+
+Confirm the build succeeds and the game plays. **Pass 2: custom domain.** Add the same
+`enable_custom_domain`, `cloudflare_api_token` and `cloudflare_zone_id` settings as the
+other Amplify modules to `terraform.tfvars`. `subdomain_prefixes` defaults to
+`["class"]`, and a validation rejects `""`, `www` and `app`.
+
+```bash
+terraform plan    # expect: 1 aws_amplify_domain_association + 1 cloudflare_record (class)
+terraform apply
+dig +short class.pufferpower.com
+curl -s https://class.pufferpower.com/version.json
+```
+
+`cloudflare_record.cert_verification` is `count = 0`, as in `amplify-website/`: ACM
+reuses `amplify/`'s already-validated certificate for the domain. When puffer moves to
+its own AWS accounts (#11), this app moves with the other two. In an account where
+nothing has validated the domain yet, the first module to attach it needs `count = 1`.
+
 ## `legacy-domain-redirect/` — pufferpanic.com → pufferpower.com redirects
 
 The app's original domain, `pufferpanic.com`, was retired because "Puffer Panic" is

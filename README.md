@@ -23,5 +23,6 @@ See [`terraform/README.md`](terraform/README.md) for per-directory setup and usa
 | --- | --- |
 | `terraform/bootstrap/` | One-time: the S3 bucket that stores every other directory's Terraform state. Run once, with local state. |
 | `terraform/amplify/` | The game's Amplify app + branch, and (gated) its custom domain + Cloudflare DNS records. |
+| `terraform/amplify-classroom/` | The classroom edition's Amplify app (`class.pufferpower.com`): the same game repo and branch as `amplify/`, built without any account/backend variables (the free, no-data school-pilot build). |
 | `terraform/amplify-website/` | The marketing site's Amplify app + branch, and (gated) its custom domain + Cloudflare DNS records. |
 | `terraform/legacy-domain-redirect/` | Cloudflare redirect rules (and proxied placeholder records) that send the retired `pufferpanic.com` hostnames to `pufferpower.com`. |
