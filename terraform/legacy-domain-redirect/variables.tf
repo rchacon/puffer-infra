@@ -30,11 +30,13 @@ variable "target_domain" {
 # in those modules' state -- apply this module only after both have moved
 # to target_domain (see terraform/README.md, "Cutover order").
 #
-# "api" is deliberately absent: puffer-infra#4 provisions the API directly
-# on api.pufferpower.com, and should append "api" here when it ships so
-# api.pufferpanic.com redirects too.
+# "api" redirects to the GraphQL API's custom domain (../puffer-api, #4),
+# which was built directly on api.pufferpower.com -- no AppSync domain ever
+# existed on pufferpanic.com. A 301 on a POST is replayed as a GET by most
+# clients, so this only helps clients that still send their requests to the
+# old host; the apps themselves target api.pufferpower.com.
 variable "redirect_prefixes" {
   description = "Subdomain prefixes of source_domain to redirect (\"\" = the apex). Each <prefix>.source_domain 301s to <prefix>.target_domain."
   type        = list(string)
-  default     = ["", "www", "app"]
+  default     = ["", "www", "app", "api"]
 }
