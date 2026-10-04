@@ -63,7 +63,7 @@ resource "aws_amplify_app" "puffer_classroom" {
   }
 
   tags = {
-    Project = "puffer-panic"
+    Project = "puffer-power"
     App     = "classroom"
   }
 
@@ -86,7 +86,7 @@ resource "aws_amplify_branch" "main" {
   stage             = "PRODUCTION"
 
   tags = {
-    Project = "puffer-panic"
+    Project = "puffer-power"
     App     = "classroom"
   }
 }
