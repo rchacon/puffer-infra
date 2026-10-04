@@ -28,6 +28,13 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
   placeholder records plus a Cloudflare Single Redirect ruleset that 301s
   `pufferpanic.com` / `www` / `app` to the same host on `pufferpower.com`, keeping the
   path and query string. No AWS resources.
+- `puffer-api/` — the backend for `rchacon/puffer-api`, one state per env
+  (`puffer-api/<env>/terraform.tfstate`, resources named `puffer-power-<env>`). It
+  holds Cognito (user pool + `game`/`portal` clients), DynamoDB (`GSI1` + stream),
+  the AppSync API + data source, Lambda *shells* (`postConfirmation`,
+  `progressProjector` + stream mapping), OIDC deploy roles for puffer-api's three
+  tag pipelines, puffer-api's GitHub Actions variables (prod only, via the `github`
+  provider), and the gated `api.pufferpower.com` domain.
 
 Modules read account-specific values (state bucket name, Cloudflare token/zone,
 GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
@@ -64,6 +71,19 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
   `puffer-website`) commits its own repo-root `amplify.yml`, which always takes
   precedence over the app's `build_spec`. Change a build in the app repo, not here.
   Rewrites (`custom_rule`) aren't part of `amplify.yml`, so those stay in Terraform.
+- **`puffer-api/` owns shells, not code.** Lambda code (`ignore_changes` on
+  `filename`/`source_code_hash`) and the AppSync schema/resolvers (a CloudFormation
+  stack deployed by puffer-api's `graphql-v*` pipeline; `ignore_changes = [schema]`)
+  are deployed by puffer-api. Never set `schema` or resolvers here. New DynamoDB
+  operations in puffer-api need IAM added here first (per-Lambda roles, AppSync
+  data source role).
+- **puffer-api uses GitHub's immutable OIDC subject**:
+  `repo:rchacon@2160525/puffer-api@1370519811:ref:refs/tags/<tag>`, with owner and
+  repo IDs. A trust policy on `repo:rchacon/puffer-api:...` never matches. The GitHub
+  OIDC provider is an account-wide singleton owned by `cd-infra`'s bootstrap (this
+  account is shared with cd-platform), so it's referenced by ARN, never created.
+- **AppSync and Cognito custom domains need us-east-1 ACM certificates** (both are
+  CloudFront-backed), whatever region the API or pool is in.
 - **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
   do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
   App's repository access list (GitHub → Settings → Applications). This applies
