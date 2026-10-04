@@ -21,6 +21,13 @@ state (S3 backend, native `use_lockfile` locking, no DynamoDB table):
   plus (gated behind `enable_custom_domain`) the `aws_amplify_domain_association` and
   the Cloudflare DNS records Amplify needs. Amplify manages its own ACM certificate
   for the domain, so there is no ACM resource here.
+- `amplify-classroom/` — the **classroom edition** of the game (`class.pufferpower.com`):
+  a second Amplify app on the same `rchacon/puffer-app` repo and branch as `amplify/`,
+  so both build on every push. Its build environment differs: it sets
+  `VITE_EDITION=classroom` and must **never** get the game's account/backend variables
+  (`VITE_COGNITO_*`, `VITE_GRAPHQL_*`). Without them the game hides all account UI and
+  makes no backend calls, which is the whole "stores no student data" guarantee behind
+  the school pilot. A precondition on the app enforces it.
 - `amplify-website/` — the marketing site app (apex `pufferpower.com` + `www`), same
   shape as `amplify/` (own `aws_amplify_app`/branch, own gated domain association +
   Cloudflare records, own two-pass apply).
@@ -50,27 +57,31 @@ GitHub PAT) from a gitignored `backend.hcl` (backend config) and a gitignored
   `pufferpanic.com`. New hostnames go on `pufferpower.com`. If an old hostname needs to
   keep working, add its prefix to `legacy-domain-redirect/`'s `redirect_prefixes`.
 - **The domain is split by module, not just by app.** `amplify/` is only ever allowed
-  `subdomain_prefixes = ["app"]` (`app.pufferpower.com`); `amplify-website/` owns the
-  apex + `www`. Don't add the apex/`www` to `amplify/`'s prefixes, and don't add `app`
-  to `amplify-website/`'s.
+  `subdomain_prefixes = ["app"]` (`app.pufferpower.com`, the home edition);
+  `amplify-classroom/` owns `class` (enforced by a variable validation); and
+  `amplify-website/` owns the apex + `www`. Never put one module's prefixes in
+  another's.
 - **Amplify's `dns_record` / `certificate_verification_dns_record` outputs are
   space-delimited strings** (`"<name> <TYPE> <VALUE>"`), parsed with `split(" ", ...)`
   and deliberately **not** `trimspace`d — the leading space on the empty-name apex
-  record is significant. Since both modules' domain associations share one Cloudflare
-  zone, whichever applies its custom domain second may see ACM reuse the other's
+  record is significant. Since all three Amplify modules' domain associations share one
+  Cloudflare zone, whichever applies its custom domain second may see ACM reuse the other's
   already-validated cert — `certificate_verification_dns_record` comes back empty in
   that case, guarded by each module's `cert_verification` precondition.
-- **Neither Amplify module sets `build_spec`.** Each app repo (`puffer-app`,
+  `amplify-website/` and `amplify-classroom/` both keep that record at `count = 0`,
+  since `amplify/`'s validation already covers the domain.
+- **No Amplify module sets `build_spec`.** Each app repo (`puffer-app`,
   `puffer-website`) commits its own repo-root `amplify.yml`, which always takes
   precedence over the app's `build_spec`. Change a build in the app repo, not here.
   Rewrites (`custom_rule`) aren't part of `amplify.yml`, so those stay in Terraform.
 - **The GitHub connection needs two manual, one-time steps per repo** Terraform can't
   do: install the AWS Amplify GitHub App for the repo, *and* add that repo to the
   App's repository access list (GitHub → Settings → Applications). This applies
-  separately to `rchacon/puffer-app` (for `amplify/`) and `rchacon/puffer-website`
+  separately to `rchacon/puffer-app` (for `amplify/` and `amplify-classroom/`, already
+  done once for both) and `rchacon/puffer-website`
   (for `amplify-website/`). The `github_access_token` variable is only a classic PAT
   with `admin:repo_hook` scope, used once at `CreateApp` to register the webhook.
-- **Two-pass apply**, for both `amplify/` and `amplify-website/`. First apply with
+- **Two-pass apply**, for every Amplify module. First apply with
   `enable_custom_domain = false` to stand up the app on its default
   `*.amplifyapp.com` URL and prove the build works; then set `enable_custom_domain =
   true` (plus `domain_name` and the `cloudflare_*` vars) and apply again to attach the

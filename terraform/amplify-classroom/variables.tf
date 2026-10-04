@@ -40,7 +40,7 @@ variable "branch_name" {
 }
 
 variable "domain_name" {
-  description = "Apex domain served by the Amplify app -- pufferpower.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
+  description = "Apex domain this Amplify app serves a subdomain of -- pufferpower.com, registered and DNS-hosted in Cloudflare. Only used when enable_custom_domain = true."
   type        = string
   default     = "pufferpower.com"
 }
@@ -82,7 +82,12 @@ variable "enable_custom_domain" {
 }
 
 variable "subdomain_prefixes" {
-  description = "Subdomain prefixes under domain_name that Amplify serves. Default is [\"app\"] -> app.pufferpower.com. Keep it to app: the apex (pufferpower.com) and www are reserved for the marketing site (../amplify-website) and class for the classroom edition (../amplify-classroom), and must not be claimed by this module."
+  description = "Subdomain prefixes under domain_name that this app serves. Default [\"class\"] -> class.pufferpower.com. The apex and www belong to ../amplify-website, and app to ../amplify (home edition); this module must not claim any of them."
   type        = list(string)
-  default     = ["app"]
+  default     = ["class"]
+
+  validation {
+    condition     = alltrue([for p in var.subdomain_prefixes : !contains(["", "www", "app"], p)])
+    error_message = "subdomain_prefixes must not include \"\" (apex), \"www\" (../amplify-website) or \"app\" (../amplify, home edition)."
+  }
 }
