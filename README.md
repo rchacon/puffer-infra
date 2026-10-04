@@ -25,3 +25,4 @@ See [`terraform/README.md`](terraform/README.md) for per-directory setup and usa
 | `terraform/amplify/` | The game's Amplify app + branch, and (gated) its custom domain + Cloudflare DNS records. |
 | `terraform/amplify-website/` | The marketing site's Amplify app + branch, and (gated) its custom domain + Cloudflare DNS records. |
 | `terraform/legacy-domain-redirect/` | Cloudflare redirect rules (and proxied placeholder records) that send the retired `pufferpanic.com` hostnames to `pufferpower.com`. |
+| `terraform/puffer-api/` | The backend for `rchacon/puffer-api`: Cognito, DynamoDB, the AppSync API, Lambda shells, OIDC deploy roles and the `api.pufferpower.com` domain. One state per environment. |

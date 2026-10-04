@@ -2,7 +2,8 @@
 
 Each subdirectory is an independent Terraform root module. Apply `bootstrap/` once,
 then `amplify/` before `amplify-website/` (see the cert-reuse note under
-`amplify-website/`), then `legacy-domain-redirect/`.
+`amplify-website/`), then `legacy-domain-redirect/`. `puffer-api/` (the backend) is
+independent of the Amplify modules and has one state per environment.
 
 ## Prerequisites
 
@@ -181,12 +182,11 @@ curl -sI https://pufferpower.com | head -1
 
 The app's original domain, `pufferpanic.com`, was retired because "Puffer Panic" is
 already the name of an unrelated iOS app. The zone stays in Cloudflare, but it now
-only redirects: `pufferpanic.com`, `www.pufferpanic.com` and `app.pufferpanic.com`
-each send a `301` to the same host and path on `pufferpower.com`, with the query
+only redirects: `pufferpanic.com`, `www.pufferpanic.com`, `app.pufferpanic.com` and
+`api.pufferpanic.com` each send a `301` to the same host and path on `pufferpower.com`, with the query
 string preserved. The module creates one proxied (orange-cloud) `AAAA 100::`
 placeholder record per hostname, plus a Cloudflare Single Redirect ruleset. No
-Amplify domain association exists on `pufferpanic.com`. `api` is added to
-`redirect_prefixes` once the API (#4) ships on `api.pufferpower.com`.
+Amplify domain association or AppSync domain exists on `pufferpanic.com`.
 
 Needs a Cloudflare API token with **Zone:DNS:Edit** *and* **Zone:Single Redirect:Edit**
 on the `pufferpanic.com` zone (it can be the same token as the Amplify modules, if
@@ -208,7 +208,7 @@ cloudflare_zone_id   = "<zone ID from the pufferpanic.com Overview tab>"
 EOF
 
 terraform init -backend-config=backend.hcl
-terraform plan    # expect: 3 cloudflare_record + 1 cloudflare_ruleset
+terraform plan    # first apply: 4 cloudflare_record + 1 cloudflare_ruleset
 terraform apply
 ```
 
@@ -250,6 +250,104 @@ aren't ready yet. Run the steps back to back.
    If the website's verification record differs from the game's, or it is stuck in
    `PENDING_VERIFICATION`, set `amplify-website/`'s `cloudflare_record.cert_verification`
    to `count = 1` and re-apply.
+
+## `puffer-api/` — backend: Cognito, DynamoDB, AppSync, Lambda shells
+
+The backend for [`rchacon/puffer-api`](https://github.com/rchacon/puffer-api). Terraform
+creates each piece once; puffer-api's three tag-triggered workflows only push new
+*code* into it:
+
+| puffer-api tag | Deploys | Via |
+| --- | --- | --- |
+| `postconfirmation-v*` | the Cognito Post Confirmation Lambda | `aws lambda update-function-code` |
+| `progressprojector-v*` | the DynamoDB-stream progress projector Lambda | `aws lambda update-function-code` |
+| `graphql-v*` | schema + resolvers + pipeline functions | a generated CloudFormation stack (`puffer-api-graphql`) |
+
+This module creates:
+- the `puffer-power-<env>` DynamoDB table (with `GSI1` and a `NEW_IMAGE` stream);
+- the Cognito user pool (Essentials tier, email username) with `game` and `portal`
+  app clients;
+- the AppSync API and its DynamoDB data source (**never the schema**: the
+  `graphql-v*` stack owns it);
+- both Lambdas, with placeholder code, plus the stream event source mapping;
+- one OIDC deploy role per tag prefix;
+- puffer-api's GitHub Actions repository variables (prod only);
+- (gated) the `api.pufferpower.com` custom domain.
+
+Managed Login (`auth.pufferpower.com`), SES, Google/Apple sign-in, the `preSignUp`
+and `deleteMyAccount` Lambdas, and the `VITE_*` wiring into `amplify/` follow in
+later PRs (#4).
+
+### Prerequisites
+
+- **`puffer-terraform` IAM permissions.** The user's policy only covers the Amplify
+  modules. Add [`puffer-api/terraform-user-policy.json`](puffer-api/terraform-user-policy.json)
+  to it (IAM console → Users → `puffer-terraform` → Add permissions → Create inline
+  policy → JSON) before the first plan.
+- **The GitHub OIDC provider** (`token.actions.githubusercontent.com`) must already
+  exist in the account. It does: `cd-infra`'s bootstrap created it, and there can only
+  be one per account. This module references it by ARN; it never creates it.
+- **A GitHub fine-grained token** for prod: repository access *only*
+  `rchacon/puffer-api`, permission **Variables: Read and write**. Used to publish
+  the deploy workflows' repository variables.
+- For the custom domain (second pass): the Cloudflare token and the `pufferpower.com`
+  zone ID, the same ones `amplify/` uses.
+
+### Setup (prod)
+
+```bash
+cd terraform/puffer-api
+
+cat > backend.hcl <<EOF
+bucket  = "<state_bucket_name from bootstrap output>"
+key     = "puffer-api/prod/terraform.tfstate"
+region  = "us-west-2"
+encrypt = true
+EOF
+
+cat > terraform.tfvars <<EOF
+env          = "prod"
+github_token = "<fine-grained token: Variables read/write on rchacon/puffer-api>"
+EOF
+
+terraform init -backend-config=backend.hcl
+terraform plan    # pass 1: ~37 resources (29 AWS + 8 github_actions_variable)
+terraform apply
+```
+
+A dev stack uses its own `backend.hcl` key (`puffer-api/dev/terraform.tfstate`) and
+`env = "dev"`, with no `github_token`: dev doesn't publish repository variables, since
+puffer-api's workflows deploy to whatever those name. Run it from a separate
+checkout or re-`init -reconfigure` between envs.
+
+**Pass 2 — custom domain.** Add to `terraform.tfvars`, then plan/apply again (expect
+an ACM certificate + validation, the AppSync domain + association, and 2 Cloudflare
+records):
+
+```hcl
+enable_custom_domain = true
+cloudflare_api_token = "<Zone:DNS:Edit token for pufferpower.com>"
+cloudflare_zone_id   = "<pufferpower.com zone ID>"
+# api_subdomain defaults to "api" -> api.pufferpower.com (use e.g. "api-dev" for dev)
+```
+
+### After the first apply
+
+1. **Deploy the real code** by tagging puffer-api: `graphql-v*` first (an API with no
+   schema rejects every request), then `postconfirmation-v*` and `progressprojector-v*`.
+   Until then the Lambdas run placeholders. Post Confirmation passes sign-ups through
+   without writing a profile, and the projector acknowledges records without writing
+   summaries.
+2. **Rebuild progress summaries once** after the first real `progressprojector-v*`
+   deploy, in case attempts were recorded while the placeholder ran:
+
+   ```bash
+   aws lambda invoke --function-name puffer-power-prod-progress-projector \
+     --cli-binary-format raw-in-base64-out --payload '{"rebuild":{}}' /dev/stdout
+   ```
+
+3. Once the custom domain is live, apply `legacy-domain-redirect/` so
+   `api.pufferpanic.com` redirects too.
 
 ## Validating without AWS credentials
 
